@@ -1,0 +1,16 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/vicki/Programming/BIU/OS/ASS-3/ex3'
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _HandleFocusMode, symObjAddr: 0x0, symBinAddr: 0x100002DF4, symSize: 0x7C }
+  - { offsetInCU: 0x76, offset: 0x76, size: 0x8, addend: 0x0, symName: _HandleFocusMode, symObjAddr: 0x0, symBinAddr: 0x100002DF4, symSize: 0x7C }
+  - { offsetInCU: 0xC4, offset: 0xC4, size: 0x8, addend: 0x0, symName: _PlayRound, symObjAddr: 0x7C, symBinAddr: 0x100002E70, symSize: 0x2B0 }
+  - { offsetInCU: 0x1BA, offset: 0x1BA, size: 0x8, addend: 0x0, symName: _GetMessage, symObjAddr: 0x32C, symBinAddr: 0x100003120, symSize: 0x50 }
+  - { offsetInCU: 0x1FA, offset: 0x1FA, size: 0x8, addend: 0x0, symName: _ChangedBlockedSignals, symObjAddr: 0x37C, symBinAddr: 0x100003170, symSize: 0xE8 }
+  - { offsetInCU: 0x288, offset: 0x288, size: 0x8, addend: 0x0, symName: _SendSignal, symObjAddr: 0x464, symBinAddr: 0x100003258, symSize: 0xFC }
+  - { offsetInCU: 0x2BA, offset: 0x2BA, size: 0x8, addend: 0x0, symName: _FindNewSignal, symObjAddr: 0x560, symBinAddr: 0x100003354, symSize: 0x198 }
+  - { offsetInCU: 0x38B, offset: 0x38B, size: 0x8, addend: 0x0, symName: _ProcessSignals, symObjAddr: 0x6F8, symBinAddr: 0x1000034EC, symSize: 0x15C }
+  - { offsetInCU: 0x403, offset: 0x403, size: 0x8, addend: 0x0, symName: _SetSignalAction, symObjAddr: 0x854, symBinAddr: 0x100003648, symSize: 0x64 }
+  - { offsetInCU: 0x447, offset: 0x447, size: 0x8, addend: 0x0, symName: _HandleCPUScheduler, symObjAddr: 0x8B8, symBinAddr: 0x1000036AC, symSize: 0x14 }
+  - { offsetInCU: 0x479, offset: 0x479, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x8CC, symBinAddr: 0x1000036C0, symSize: 0x120 }
+...

@@ -26,6 +26,7 @@
     "2 = Reminder to pick up delivery\n" \
     "3 = Doorbell Ringing\n" \
     "q = Quit\n" \
+    ">> " \
 
 #define SIGNAL_EMAIL                            SIGUSR1
 #define SIGNAL_DELIVERY                         SIGUSR2
@@ -52,15 +53,14 @@ typedef enum
 char GetMessage();
 void PlayRound(int roundNumber, int duration);
 void ProcessSignals(const int* singals, int signalsCount);
-void HandleFocusMode(int roundNumber, int duration);
+void HandleFocusMode(int numOfRounds, int duration);
 void SendSignal(char message);
 int FindNewSignal(const int* seenSignals, int seenSignalsCount, const int* relevantSignals, int relevantSignalsCount);
-void ConsumeSignals(const int* signalsToConsume, int signalsToConsumeCount);
 void ChangedBlockedSignals(int action, const int* signals, int signalsCount);
 
 void HandleFocusMode(int numOfRounds, int duration)
 {
-    for (int i = 0; i < numOfRounds; i++)
+    for (int i = 1; i <= numOfRounds; i++)
         PlayRound(i, duration);
 
     // for some reason it was printed this way in the example
@@ -92,7 +92,7 @@ void PlayRound(int roundNumber, int duration)
     }
 
     printf(roundNumber == 0 ? FIRST_ROUND_INTRO : NON_FIRST_ROUND_INTRO);
-    printf(ADDITIONAL_ROUND_INTRO, 1);
+    printf(ADDITIONAL_ROUND_INTRO, roundNumber);
 
     /*
      * BLOCK RELEVANT SIGNALS
@@ -105,7 +105,8 @@ void PlayRound(int roundNumber, int duration)
     /*
      * GENERATE seenSignals
      */
-    for (int i = 0; i < duration; i++)
+    boolean didQuit = false;
+    for (int i = 0; i < duration && !didQuit; i++)
     {
         int newSignal = -1;
 
@@ -113,7 +114,10 @@ void PlayRound(int roundNumber, int duration)
 
         int message = GetMessage();
         if (message == MESSAGE_QUIT)
+        {
+            didQuit = true;
             break;
+        }
 
 
 
@@ -244,7 +248,7 @@ int FindNewSignal(const int* seenSignals, int seenSignalsCount, const int* relev
         if (sigismember(&pendingSignals, relevantSignals[i]))
         {
             boolean isSignalSeen = false;
-            for (int j = 0; i < seenSignalsCount; j++)
+            for (int j = 0; j < seenSignalsCount; j++)
             {
                 if (relevantSignals[i] == seenSignals[j])
                     isSignalSeen = true;
@@ -255,31 +259,6 @@ int FindNewSignal(const int* seenSignals, int seenSignalsCount, const int* relev
     }
 
     return -1;
-}
-
-void ConsumeSignals(const int* signalsToConsume, int signalsToConsumeCount)
-{
-    /*
-     * RE-DEFINING SIGNAL ACTIONS
-     */
-    for (int i = 0; i < signalsToConsumeCount; i++)
-        SetSignalAction(signalsToConsume[i], SIG_IGN);
-
-    /*
-     * UNBLOCKING SIGNALS
-     */
-    ChangedBlockedSignals(SIG_UNBLOCK, signalsToConsume, signalsToConsumeCount);
-
-    /*
-     * CLEANUP
-     */
-    for (int i = 0; i < signalsToConsumeCount; i++)
-        SetSignalAction(signalsToConsume[i], SIG_DFL);
-
-    /*
-     * BLOCKING SIGNALS AGAIN
-     */
-    ChangedBlockedSignals(SIG_BLOCK, signalsToConsume, signalsToConsumeCount);
 }
 
 void ChangedBlockedSignals(int action, const int* signals, int signalsCount)
