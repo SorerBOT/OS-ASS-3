@@ -33,15 +33,15 @@
 ">> Summary        :\n" \
 "   └─ Average Waiting Time : %.2f time units\n" \
 ">> End of Report\n" \
-"══════════════════════════════════════════════\n"
+"══════════════════════════════════════════════\n\n"
 
 #define SCHEDULER_OUTRO_TURNAROUND \
-"──────────────────────────────────────────────\n" \
+"\n──────────────────────────────────────────────\n" \
 ">> Engine Status  : Completed\n" \
 ">> Summary        :\n" \
 "   └─ Total Turnaround Time : %d time units\n\n" \
 ">> End of Report\n" \
-"══════════════════════════════════════════════\n"
+"══════════════════════════════════════════════\n\n"
 
 
 typedef struct
@@ -155,8 +155,8 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
      */
     AlgorithmData roundRobinAlg;
     roundRobinAlg.CmpPriority = CmpPriorityNull;
-    roundRobinAlg.shouldPrintTotalWait = true;
-    roundRobinAlg.shouldPrintTurnaround = false;
+    roundRobinAlg.shouldPrintTotalWait = false;
+    roundRobinAlg.shouldPrintTurnaround = true;
     roundRobinAlg.name = ALGORITHM_RR;
     roundRobinAlg.maxUptime = timeQuantum;
     RunAlgorithm(roundRobinAlg, procs, procsCount);
@@ -493,12 +493,13 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
         if (isProcessRunning)
         {
             int processUptime = (int)GetTimeElapsed(processStartingTime);
+            int schedulerUptime = (int)GetTimeElapsed(startingTime);
+
             if (processUptime >= runningProcess.burst_time)
             {
                 /*
                  * Adding to totalWaitingTime
                  */
-                int schedulerUptime = (int)GetTimeElapsed(startingTime);
                 totalWaitingTime += schedulerUptime - runningProcess.burst_time - runningProcess.arrival_time;
                 isProcessRunning = false;
 
@@ -520,8 +521,35 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                     break;
                 }
             }
-        }
+            else if (algorithm.maxUptime != -1)
+            {
+                if (processUptime >= algorithm.maxUptime)
+                {
+                    /*
+                     * Adding to totalWaitingTime
+                     */
+                    totalWaitingTime += schedulerUptime - algorithm.maxUptime - runningProcess.arrival_time;
+                    isProcessRunning = false;
 
+
+
+                    /*
+                     * Printing process log
+                     */
+                    printf(PROC_LOG, schedulerUptime - algorithm.maxUptime, schedulerUptime, runningProcess.name, runningProcess.desc);
+
+
+
+                    /*
+                     * Process did not finish entire burst. Adjusting it and re-adding to queue
+                     */
+                    Process modifiedProcess = runningProcess;
+                    modifiedProcess.arrival_time = schedulerUptime;
+                    modifiedProcess.burst_time -= algorithm.maxUptime;
+                    Enqueue(&queue, modifiedProcess);
+                }
+            }
+        }
 
 
         if (!isProcessRunning && !IsEmpty(queue))
@@ -558,6 +586,8 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
         ualarm((int)1e5, 0);
         pause();
     }
+
+
 
     if (algorithm.shouldPrintTotalWait)
         printf(SCHEDULER_OUTRO_TOTAL_WAIT, (double)totalWaitingTime / procsCount);
