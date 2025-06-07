@@ -1,3 +1,4 @@
+#include <math.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
@@ -15,6 +16,34 @@
 
 #define CSV_DELIMS ","
 
+#define PROC_LOG "%d → %d: %s Running %s.\n"
+#define IDLE_LOG "%d → %d: Idle.\n"
+#define ALGORITHM_FCFS "FCFS"
+#define ALGORITHM_SJF "SJF"
+#define ALGORITHM_PRIORITY "Priority"
+#define ALGORITHM_RR "Round Robin"
+#define SCHEDULER_INTRO \
+"══════════════════════════════════════════════\n" \
+">> Scheduler Mode : %s\n" \
+">> Engine Status  : Initialized\n" \
+"──────────────────────────────────────────────\n\n"
+#define SCHEDULER_OUTRO_TOTAL_WAIT \
+"\n──────────────────────────────────────────────\n" \
+">> Engine Status  : Completed\n" \
+">> Summary        :\n" \
+"   └─ Average Waiting Time : %.2f time units\n" \
+">> End of Report\n" \
+"══════════════════════════════════════════════\n"
+
+#define SCHEDULER_OUTRO_TURNAROUND \
+"──────────────────────────────────────────────\n" \
+">> Engine Status  : Completed\n" \
+">> Summary        :\n" \
+"   └─ Total Turnaround Time : %d time units\n\n" \
+">> End of Report\n" \
+"══════════════════════════════════════════════\n"
+
+
 typedef struct
 {
     char name[MAX_NAME];
@@ -25,8 +54,6 @@ typedef struct
     int original_idx;
 } Process;
 
-
-
 typedef struct
 {
     Process procs[MAX_PROC];
@@ -35,8 +62,19 @@ typedef struct
 } ReadyQueue;
 
 
+typedef struct
+{
+    int (*CmpPriority)(Process, Process);
+    bool shouldPrintTurnaround;
+    bool shouldPrintTotalWait;
+    char* name;
+    int maxUptime;
+} AlgorithmData;
+
 
 int CmpPriorityNull(Process _, Process __);
+int CmpLowerPriority(Process a, Process b);
+int CmpShortestBurst(Process a, Process b);
 int ProcCmpPriority(Process a, Process b, int (*getProcessPriority)(Process));
 void Enqueue(ReadyQueue* queue, Process item);
 Process Dequeue(ReadyQueue* queue);
@@ -48,6 +86,7 @@ int ProcCmpArrivalTime(Process a, Process b);
 double GetTimeElapsed(struct timespec startingTime);
 void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, int procCount, struct timespec startingTime);
 void SigAlarmHandler();
+void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount);
 
 
 
@@ -55,6 +94,7 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
 {
     int procsCount = 0;
     Process procs[MAX_PROC];
+
 
 
     /*
@@ -72,123 +112,54 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
 
 
     /*
-     * Initialise Ready Queue (FCFS)
+     * FCFS alg
      */
-    ReadyQueue queue;
-    queue.size = 0;
-    queue.CmpPriority = CmpPriorityNull;
-    if (queue.CmpPriority == NULL)
-    {
-        fprintf(stderr, "null after init\n");
-        exit(EXIT_FAILURE);
-    }
+    AlgorithmData fcfs;
+    fcfs.CmpPriority = CmpPriorityNull;
+    fcfs.shouldPrintTotalWait = true;
+    fcfs.shouldPrintTurnaround = false;
+    fcfs.name = ALGORITHM_FCFS;
+    fcfs.maxUptime = -1;
+    RunAlgorithm(fcfs, procs, procsCount);
 
 
 
     /*
-     * Ignoring sigalarms, we use them as a waiting mechanism
+     * SJF alg
      */
-    struct sigaction act;
-    act.sa_handler = SigAlarmHandler;
-    act.sa_flags = 0;
-    sigemptyset(&act.sa_mask);
-    sigaction(SIGALRM, &act, NULL);
+    AlgorithmData sjf;
+    sjf.CmpPriority = CmpShortestBurst;
+    sjf.shouldPrintTotalWait = true;
+    sjf.shouldPrintTurnaround = false;
+    sjf.name = ALGORITHM_SJF;
+    sjf.maxUptime = -1;
+    RunAlgorithm(sjf, procs, procsCount);
 
 
 
     /*
-     * Start timer
+     * Priority alg
      */
-    struct timespec startingTime;
-    if (clock_gettime(CLOCK_MONOTONIC, &startingTime) != 0)
-    {
-        perror("clock_gettime() error");
-        exit(EXIT_FAILURE);
-    }
+    AlgorithmData priorityAlg;
+    priorityAlg.CmpPriority = CmpLowerPriority;
+    priorityAlg.shouldPrintTotalWait = true;
+    priorityAlg.shouldPrintTurnaround = false;
+    priorityAlg.name = ALGORITHM_PRIORITY;
+    priorityAlg.maxUptime = -1;
+    RunAlgorithm(priorityAlg, procs, procsCount);
 
 
 
     /*
-     * Main loop which runs every tick (1 second) and:
-     * Enqueues new processes
-     * Checks if the process currently running has finished
-     *
+     * RR alg
      */
-    int startingIdx = 0;
-    Process runningProcess;
-    bool isProcessRunning = false;
-    bool isIdling = false;
-    struct timespec processStartingTime;
-    bool isProcessNotArrived = startingIdx < procsCount;
-    int turnaroundTime = 0;
-    int iteration = 0;
-
-    while (isProcessNotArrived || IsEmpty(queue) || isProcessRunning)
-    {
-        isProcessNotArrived = startingIdx < procsCount;
-
-
-
-        if (isProcessNotArrived)
-        {
-            if (queue.CmpPriority == NULL)
-            {
-                fprintf(stderr, "Argument null error in function HandleCPUScheduler, 'queue.CmpPriority' cannot be null (iteration %d)\n", iteration);
-                exit(EXIT_FAILURE);
-            }
-            EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, startingTime);
-        }
-
-
-
-        if (isProcessRunning)
-        {
-            int timeElapsed = GetTimeElapsed(processStartingTime);
-            if (timeElapsed >= runningProcess.burst_time)
-            {
-                isProcessRunning = false;
-                if (!isProcessNotArrived && IsEmpty(queue))
-                {
-                    turnaroundTime = GetTimeElapsed(startingTime);
-                    break;
-                }
-            }
-        }
-
-
-
-        if (!isProcessRunning && !IsEmpty(queue))
-        {
-            if (isIdling)
-            {
-                isIdling = false;
-            }
-            isProcessRunning = true;
-            if (clock_gettime(CLOCK_MONOTONIC, &processStartingTime) != 0)
-            {
-                perror("clock_gettime() error");
-                exit(EXIT_FAILURE);
-            }
-            runningProcess = Dequeue(&queue);
-        }
-
-
-
-
-        if (!isProcessRunning && IsEmpty(queue) && isProcessNotArrived)
-        {
-            isIdling = true;
-        }
-
-
-        iteration++;
-        ualarm((int)1e5, 0);
-        pause();
-    }
-
-
-
-    printf("Turnaround time: %d\n", turnaroundTime);
+    AlgorithmData roundRobinAlg;
+    roundRobinAlg.CmpPriority = CmpPriorityNull;
+    roundRobinAlg.shouldPrintTotalWait = true;
+    roundRobinAlg.shouldPrintTurnaround = false;
+    roundRobinAlg.name = ALGORITHM_RR;
+    roundRobinAlg.maxUptime = timeQuantum;
+    RunAlgorithm(roundRobinAlg, procs, procsCount);
 }
 
 
@@ -304,6 +275,16 @@ int CmpPriorityNull(Process _, Process __)
     return 0;
 }
 
+int CmpShortestBurst(Process a, Process b)
+{
+    return a.burst_time - b.burst_time;
+}
+
+int CmpLowerPriority(Process a, Process b)
+{
+    return a.priority - b.priority;
+}
+
 int ProcCmpArrivalTime(Process a, Process b)
 {
     return a.arrival_time - b.arrival_time;
@@ -380,8 +361,8 @@ double GetTimeElapsed(struct timespec startingTime)
         exit(EXIT_FAILURE);
     }
 
-    return  (currentTime.tv_sec - startingTime.tv_sec) +
-            (currentTime.tv_nsec - startingTime.tv_nsec) / 1e9;
+    return  (double) (currentTime.tv_sec - startingTime.tv_sec) +
+            (double) (currentTime.tv_nsec - startingTime.tv_nsec) / 1e9;
 }
 
 void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, int procCount, struct timespec startingTime)
@@ -400,7 +381,7 @@ void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, in
     /*
      * Getting scheduler uptime
      */
-    double uptime = GetTimeElapsed(startingTime);
+    int uptime = (int)GetTimeElapsed(startingTime);
 
 
 
@@ -408,7 +389,7 @@ void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, in
      * Adding processes to ReadyQueue
      */
     for (; *startingIdx < procCount; (*startingIdx)++)
-        if (procs[*startingIdx].arrival_time < uptime)
+        if (procs[*startingIdx].arrival_time <= uptime)
         {
             if (queue->CmpPriority == NULL)
             {
@@ -426,3 +407,171 @@ bool IsEmpty(ReadyQueue queue)
 }
 
 void SigAlarmHandler() {  }
+
+
+void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
+{
+    /*
+     * Initialise Ready Queue (FCFS)
+     */
+    ReadyQueue queue;
+    queue.size = 0;
+    queue.CmpPriority = algorithm.CmpPriority;
+    if (queue.CmpPriority == NULL)
+    {
+        fprintf(stderr, "null after init\n");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+    /*
+     * Ignoring sigalarms, we use them as a waiting mechanism
+     */
+    struct sigaction act;
+    act.sa_handler = SigAlarmHandler;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGALRM, &act, NULL);
+
+
+
+    /*
+     * Print introduction
+     */
+    printf(SCHEDULER_INTRO, algorithm.name);
+
+
+
+    /*
+     * Start timer
+     */
+    struct timespec startingTime;
+    if (clock_gettime(CLOCK_MONOTONIC, &startingTime) != 0)
+    {
+        perror("clock_gettime() error");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+    /*
+     * Main loop which runs every tick (1 second) and:
+     * Enqueues new processes
+     * Checks if the process currently running has finished
+     *
+     */
+    int startingIdx = 0;
+    Process runningProcess;
+    bool isProcessRunning = false;
+    bool isIdling = false;
+    struct timespec processStartingTime;
+    bool isProcessNotArrived = startingIdx < procsCount;
+    int turnaroundTime = 0;
+    int totalWaitingTime = 0;
+    int iteration = 0;
+    int idleTimeStart = -1;
+
+    while (isProcessNotArrived || IsEmpty(queue) || isProcessRunning)
+    {
+        isProcessNotArrived = startingIdx < procsCount;
+
+
+
+        if (isProcessNotArrived)
+        {
+            if (queue.CmpPriority == NULL)
+            {
+                fprintf(stderr, "Argument null error in function HandleCPUScheduler, 'queue.CmpPriority' cannot be null (iteration %d)\n", iteration);
+                exit(EXIT_FAILURE);
+            }
+            EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, startingTime);
+        }
+
+
+
+        if (isProcessRunning)
+        {
+            int processUptime = (int)GetTimeElapsed(processStartingTime);
+            if (processUptime >= runningProcess.burst_time)
+            {
+                /*
+                 * Adding to totalWaitingTime
+                 */
+                int schedulerUptime = (int)GetTimeElapsed(startingTime);
+                totalWaitingTime += schedulerUptime - runningProcess.burst_time - runningProcess.arrival_time;
+                isProcessRunning = false;
+
+
+
+                /*
+                 * Printing process log
+                 */
+                printf(PROC_LOG, schedulerUptime - runningProcess.burst_time, schedulerUptime, runningProcess.name, runningProcess.desc);
+
+
+
+                /*
+                 * Checks if we've finished with all the processes
+                 */
+                if (!isProcessNotArrived && IsEmpty(queue))
+                {
+                    turnaroundTime = (int)GetTimeElapsed(startingTime);
+                    break;
+                }
+            }
+        }
+
+
+
+        if (!isProcessRunning && !IsEmpty(queue))
+        {
+            if (isIdling)
+            {
+                /*
+                 * Printing idle log
+                 */
+                int schedulerUptime = (int)GetTimeElapsed(startingTime);
+                printf(IDLE_LOG, idleTimeStart, schedulerUptime);
+                isIdling = false;
+                idleTimeStart = -1;
+            }
+            isProcessRunning = true;
+            if (clock_gettime(CLOCK_MONOTONIC, &processStartingTime) != 0)
+            {
+                perror("clock_gettime() error");
+                exit(EXIT_FAILURE);
+            }
+            runningProcess = Dequeue(&queue);
+        }
+
+
+
+        if (!isProcessRunning && IsEmpty(queue) && isProcessNotArrived)
+        {
+            isIdling = true;
+            idleTimeStart = (int)GetTimeElapsed(startingTime);
+        }
+
+
+        iteration++;
+        ualarm((int)1e5, 0);
+        pause();
+    }
+
+    if (algorithm.shouldPrintTotalWait)
+        printf(SCHEDULER_OUTRO_TOTAL_WAIT, (double)totalWaitingTime / procsCount);
+    if (algorithm.shouldPrintTurnaround)
+        printf(SCHEDULER_OUTRO_TURNAROUND, turnaroundTime);
+
+
+
+    /*
+     * Restoring the sigalarm handler
+     */
+    struct sigaction act_restore;
+    act_restore.sa_handler = SIG_DFL;
+    act_restore.sa_flags = 0;
+    sigemptyset(&act_restore.sa_mask);
+    sigaction(SIGALRM, &act_restore, NULL);
+}
