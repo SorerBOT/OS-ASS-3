@@ -6,22 +6,22 @@
 #define FIRST_ROUND_INTRO "Entering Focus Mode. All distractions are blocked.\n"
 #define NON_FIRST_ROUND_INTRO \
     "──────────────────────────────────────────────\n" \
-    "             Back to Focus Mode.\n" \
+    "             Back to Focus Mode.              \n" \
     "══════════════════════════════════════════════\n\n"
 
 #define ADDITIONAL_ROUND_INTRO \
     "══════════════════════════════════════════════\n" \
     "                Focus Round %d                \n" \
-    "──────────────────────────────────────────────\n\n"
+    "──────────────────────────────────────────────\n"
 
 #define DISTRACTIONS_INTRO \
     "──────────────────────────────────────────────\n" \
-    "        Checking pending distractions...\n" \
+    "        Checking pending distractions...      \n" \
     "──────────────────────────────────────────────\n"
 #define DISTRACTIONS_INTRO_EMPTY "No distractions reached you this round.\n"
 
 #define GET_MESSAGE_PROMPT \
-    "Simulate a distraction:\n" \
+    "\nSimulate a distraction:\n" \
     "  1 = Email notification\n" \
     "  2 = Reminder to pick up delivery\n" \
     "  3 = Doorbell Ringing\n" \

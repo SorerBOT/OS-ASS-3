@@ -475,9 +475,6 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
     while (isProcessNotArrived || IsEmpty(queue) || isProcessRunning)
     {
         isProcessNotArrived = startingIdx < procsCount;
-
-
-
         if (isProcessNotArrived)
         {
             if (queue.CmpPriority == NULL)
@@ -486,6 +483,7 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                 exit(EXIT_FAILURE);
             }
             EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, startingTime);
+            isProcessNotArrived = startingIdx < procsCount;
         }
 
 
@@ -575,7 +573,7 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
 
 
 
-        if (!isProcessRunning && IsEmpty(queue) && isProcessNotArrived)
+        if (!isProcessRunning && IsEmpty(queue) && isProcessNotArrived && !isIdling)
         {
             isIdling = true;
             idleTimeStart = (int)GetTimeElapsed(startingTime);
