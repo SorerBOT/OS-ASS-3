@@ -5,7 +5,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["Focus-Mode", "3", "3"],
+            "args": ["CPU-Scheduler", "./cpu_input1.csv", "4"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "externalConsole": true,
