@@ -77,6 +77,11 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
     ReadyQueue queue;
     queue.size = 0;
     queue.CmpPriority = CmpPriorityNull;
+    if (queue.CmpPriority == NULL)
+    {
+        fprintf(stderr, "null after init\n");
+        exit(EXIT_FAILURE);
+    }
 
 
 
@@ -116,6 +121,7 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
     struct timespec processStartingTime;
     bool isProcessNotArrived = startingIdx < procsCount;
     int turnaroundTime = 0;
+    int iteration = 0;
 
     while (isProcessNotArrived || IsEmpty(queue) || isProcessRunning)
     {
@@ -124,7 +130,14 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
 
 
         if (isProcessNotArrived)
+        {
+            if (queue.CmpPriority == NULL)
+            {
+                fprintf(stderr, "Argument null error in function HandleCPUScheduler, 'queue.CmpPriority' cannot be null (iteration %d)\n", iteration);
+                exit(EXIT_FAILURE);
+            }
             EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, startingTime);
+        }
 
 
 
@@ -168,7 +181,7 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
         }
 
 
-
+        iteration++;
         ualarm((int)1e5, 0);
         pause();
     }
@@ -298,6 +311,12 @@ int ProcCmpArrivalTime(Process a, Process b)
 
 void SortProcesses(Process procs[], int procCount, int (*predicate)(Process, Process))
 {
+    if (predicate == NULL)
+    {
+        fprintf(stderr, "Argument null error in function SortProcesses, 'predicate' cannot be null\n\n");
+        exit(EXIT_FAILURE);
+    }
+
     bool didSwap;
     do
     {
@@ -320,7 +339,7 @@ Process Dequeue(ReadyQueue* queue)
 {
     if (IsEmpty(*queue))
     {
-        fprintf(stderr, "Invalid operation error: queue is already empty");
+        fprintf(stderr, "Invalid operation error: queue is already empty\n");
         exit(EXIT_FAILURE);
     }
 
@@ -328,7 +347,7 @@ Process Dequeue(ReadyQueue* queue)
 
     queue->size--;
     for (int i = 0; i < queue->size; i++)
-        queue[i] = queue[i+1];
+        queue->procs[i] = queue->procs[i+1];
 
     return firstProcess;
 }
@@ -337,9 +356,15 @@ void Enqueue(ReadyQueue* queue, Process item)
 {
     if (queue->size >= MAX_PROC)
     {
-        fprintf(stderr, "Invalid operation error: queue is full");
+        fprintf(stderr, "Invalid operation error: queue is full\n");
         exit(EXIT_FAILURE);
     }
+    if (queue->CmpPriority == NULL)
+    {
+        fprintf(stderr, "Argument null error in function Enqueue, 'queue->CmpPriority' cannot be null\n");
+        exit(EXIT_FAILURE);
+    }
+
     queue->procs[queue->size] = item;
     queue->size++;
     SortProcesses(queue->procs, queue->size, queue->CmpPriority);
@@ -382,11 +407,15 @@ void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, in
     /*
      * Adding processes to ReadyQueue
      */
-    for (int i = *startingIdx; i < procCount; i++)
-        if (procs[i].arrival_time < uptime)
+    for (; *startingIdx < procCount; (*startingIdx)++)
+        if (procs[*startingIdx].arrival_time < uptime)
         {
-            Enqueue(queue, procs[i]);
-            (*startingIdx)++;
+            if (queue->CmpPriority == NULL)
+            {
+                fprintf(stderr, "Argument null error in function EnqueueNewArrivals, 'queue->CmpPriority' cannot be null\n");
+                exit(EXIT_FAILURE);
+            }
+            Enqueue(queue, procs[*startingIdx]);
         }
         else break;
 }
