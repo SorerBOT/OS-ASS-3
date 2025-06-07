@@ -1,6 +1,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <time.h>
+#include <unistd.h>
 
 #define MAX_NAME 51
 #define MAX_DESC 101
@@ -19,8 +22,23 @@ typedef struct
     int original_idx;
 } Process;
 
+
+
+typedef struct
+{
+    Process procs[MAX_PROC];
+    int size;
+    int (*CmpPriority)(Process, Process);
+} ReadyQueue;
+
+int CmpPriorityNull(Process _, Process __);
+int ProcCmpPriority(Process a, Process b, int (*getProcessPriority)(Process));
+void Enqueue(ReadyQueue* queue, Process item);
+Process Dequeue(ReadyQueue* queue);
 void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount);
 Process ParseProcess(const char* line);
+void SortProcesses(Process procs[], int procCount, int (*predicate)(Process, Process));
+int ProcCmpArrivalTime(Process a, Process b);
 
 void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
 {
@@ -29,17 +47,44 @@ void HandleCPUScheduler(const char* processesCsvFilePath, int timeQuantum)
 
 
     /*
-     * GET PROCS FROM FILE
+     * Get procs from file
      */
     InitProcessesFromCSV(processesCsvFilePath, procs, &procsCount);
 
 
 
     /*
-     * 
+     * Sort procs (stable)
      */
+    SortProcesses(procs, procsCount, ProcCmpArrivalTime);
 
+
+
+    /*
+     * Initialise Ready Queue (FCFS)
+     */
+    ReadyQueue queue =
+    {
+        .CmpPriority = CmpPriorityNull,
+        .size = 0,
+    };
+
+
+
+    /*
+     * Start timer
+     */
+    struct timespec startingTime, currentTime;
+    clock_gettime(CLOCK_MONOTONIC, &startingTime);
+
+    sleep(5);
+
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+    double elapsed = (currentTime.tv_sec - startingTime.tv_sec) +
+        (currentTime.tv_nsec - startingTime.tv_nsec) / 1e9;
 }
+
+
 
 void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount)
 {
@@ -59,7 +104,9 @@ void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount)
     char line[MAX_LINE];
     while (fgets(line, MAX_LINE, file) != NULL)
     {
-        oprocs[*oprocsCount] = ParseProcess(line);
+        Process proc = ParseProcess(line);
+        proc.original_idx = *oprocsCount;
+        oprocs[*oprocsCount] = proc;
         (*oprocsCount)++;
     }
     if (ferror(file))
@@ -68,6 +115,8 @@ void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount)
         exit(EXIT_FAILURE);
     }
 }
+
+
 
 Process ParseProcess(const char* line)
 {
@@ -141,4 +190,53 @@ Process ParseProcess(const char* line)
 
 
     return proc;
+}
+
+int CmpPriorityNull(Process _, Process __)
+{
+    return 0;
+}
+
+
+int ProcCmpArrivalTime(Process a, Process b)
+{
+    return a.arrival_time - b.arrival_time;
+}
+
+void SortProcesses(Process procs[], int procCount, int (*predicate)(Process, Process))
+{
+    bool didSwap;
+    do
+    {
+        didSwap = false;
+        for (int i = 0; i < procCount - 1; i++)
+        {
+            int cmpRes = predicate(procs[i], procs[i+1]);
+            if (cmpRes > 0)
+            {
+                Process temp = procs[i];
+                procs[i] = procs[i+1];
+                procs[i+1] = temp;
+                didSwap = true;
+            }
+        }
+    } while (didSwap);
+}
+
+Process Dequeue(ReadyQueue* queue)
+{
+    Process firstProcess = queue->procs[0];
+
+    queue->size--;
+    for (int i = 0; i < queue->size; i++)
+        queue[i] = queue[i+1];
+
+    return firstProcess;
+}
+
+void Enqueue(ReadyQueue* queue, Process item)
+{
+    queue->procs[queue->size] = item;
+    queue->size++;
+    SortProcesses(queue->procs, queue->size, queue->CmpPriority);
 }

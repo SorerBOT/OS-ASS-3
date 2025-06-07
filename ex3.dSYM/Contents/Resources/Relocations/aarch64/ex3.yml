@@ -2,17 +2,22 @@
 triple:          'arm64-apple-darwin'
 binary-path:     '/Users/vicki/Programming/BIU/OS/ASS-3/ex3'
 relocations:
-  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _HandleFocusMode, symObjAddr: 0x0, symBinAddr: 0x100002990, symSize: 0x7C }
-  - { offsetInCU: 0x76, offset: 0x76, size: 0x8, addend: 0x0, symName: _HandleFocusMode, symObjAddr: 0x0, symBinAddr: 0x100002990, symSize: 0x7C }
-  - { offsetInCU: 0xC4, offset: 0xC4, size: 0x8, addend: 0x0, symName: _PlayRound, symObjAddr: 0x7C, symBinAddr: 0x100002A0C, symSize: 0x2DC }
-  - { offsetInCU: 0x1BA, offset: 0x1BA, size: 0x8, addend: 0x0, symName: _GetMessage, symObjAddr: 0x358, symBinAddr: 0x100002CE8, symSize: 0x50 }
-  - { offsetInCU: 0x1FA, offset: 0x1FA, size: 0x8, addend: 0x0, symName: _ChangedBlockedSignals, symObjAddr: 0x3A8, symBinAddr: 0x100002D38, symSize: 0xE8 }
-  - { offsetInCU: 0x288, offset: 0x288, size: 0x8, addend: 0x0, symName: _SendSignal, symObjAddr: 0x490, symBinAddr: 0x100002E20, symSize: 0xFC }
-  - { offsetInCU: 0x2BA, offset: 0x2BA, size: 0x8, addend: 0x0, symName: _FindNewSignal, symObjAddr: 0x58C, symBinAddr: 0x100002F1C, symSize: 0x198 }
-  - { offsetInCU: 0x38B, offset: 0x38B, size: 0x8, addend: 0x0, symName: _ProcessSignals, symObjAddr: 0x724, symBinAddr: 0x1000030B4, symSize: 0x15C }
-  - { offsetInCU: 0x403, offset: 0x403, size: 0x8, addend: 0x0, symName: _SetSignalAction, symObjAddr: 0x880, symBinAddr: 0x100003210, symSize: 0x64 }
-  - { offsetInCU: 0x447, offset: 0x447, size: 0x8, addend: 0x0, symName: _HandleCPUScheduler, symObjAddr: 0x8E4, symBinAddr: 0x100003274, symSize: 0x8C }
-  - { offsetInCU: 0x495, offset: 0x495, size: 0x8, addend: 0x0, symName: _InitProcessesFromCSV, symObjAddr: 0x970, symBinAddr: 0x100003300, symSize: 0x140 }
-  - { offsetInCU: 0x4F2, offset: 0x4F2, size: 0x8, addend: 0x0, symName: _ParseProcess, symObjAddr: 0xAB0, symBinAddr: 0x100003440, symSize: 0x1EC }
-  - { offsetInCU: 0x553, offset: 0x553, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0xC9C, symBinAddr: 0x10000362C, symSize: 0x120 }
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _HandleFocusMode, symObjAddr: 0x0, symBinAddr: 0x100002570, symSize: 0x7C }
+  - { offsetInCU: 0x76, offset: 0x76, size: 0x8, addend: 0x0, symName: _HandleFocusMode, symObjAddr: 0x0, symBinAddr: 0x100002570, symSize: 0x7C }
+  - { offsetInCU: 0xC4, offset: 0xC4, size: 0x8, addend: 0x0, symName: _PlayRound, symObjAddr: 0x7C, symBinAddr: 0x1000025EC, symSize: 0x2DC }
+  - { offsetInCU: 0x1BA, offset: 0x1BA, size: 0x8, addend: 0x0, symName: _GetMessage, symObjAddr: 0x358, symBinAddr: 0x1000028C8, symSize: 0x50 }
+  - { offsetInCU: 0x1FA, offset: 0x1FA, size: 0x8, addend: 0x0, symName: _ChangedBlockedSignals, symObjAddr: 0x3A8, symBinAddr: 0x100002918, symSize: 0xE8 }
+  - { offsetInCU: 0x288, offset: 0x288, size: 0x8, addend: 0x0, symName: _SendSignal, symObjAddr: 0x490, symBinAddr: 0x100002A00, symSize: 0xFC }
+  - { offsetInCU: 0x2BA, offset: 0x2BA, size: 0x8, addend: 0x0, symName: _FindNewSignal, symObjAddr: 0x58C, symBinAddr: 0x100002AFC, symSize: 0x198 }
+  - { offsetInCU: 0x38B, offset: 0x38B, size: 0x8, addend: 0x0, symName: _ProcessSignals, symObjAddr: 0x724, symBinAddr: 0x100002C94, symSize: 0x15C }
+  - { offsetInCU: 0x403, offset: 0x403, size: 0x8, addend: 0x0, symName: _SetSignalAction, symObjAddr: 0x880, symBinAddr: 0x100002DF0, symSize: 0x64 }
+  - { offsetInCU: 0x447, offset: 0x447, size: 0x8, addend: 0x0, symName: _HandleCPUScheduler, symObjAddr: 0x8E4, symBinAddr: 0x100002E54, symSize: 0x12C }
+  - { offsetInCU: 0x4D6, offset: 0x4D6, size: 0x8, addend: 0x0, symName: _InitProcessesFromCSV, symObjAddr: 0xA10, symBinAddr: 0x100002F80, symSize: 0x144 }
+  - { offsetInCU: 0x54F, offset: 0x54F, size: 0x8, addend: 0x0, symName: _SortProcesses, symObjAddr: 0xB54, symBinAddr: 0x1000030C4, symSize: 0x1BC }
+  - { offsetInCU: 0x5F8, offset: 0x5F8, size: 0x8, addend: 0x0, symName: _ProcCmpArrivalTime, symObjAddr: 0xD10, symBinAddr: 0x100003280, symSize: 0x28 }
+  - { offsetInCU: 0x630, offset: 0x630, size: 0x8, addend: 0x0, symName: _CmpPriorityNull, symObjAddr: 0xD38, symBinAddr: 0x1000032A8, symSize: 0x18 }
+  - { offsetInCU: 0x668, offset: 0x668, size: 0x8, addend: 0x0, symName: _ParseProcess, symObjAddr: 0xD50, symBinAddr: 0x1000032C0, symSize: 0x1EC }
+  - { offsetInCU: 0x6C9, offset: 0x6C9, size: 0x8, addend: 0x0, symName: _Dequeue, symObjAddr: 0xF3C, symBinAddr: 0x1000034AC, symSize: 0xCC }
+  - { offsetInCU: 0x71C, offset: 0x71C, size: 0x8, addend: 0x0, symName: _Enqueue, symObjAddr: 0x1008, symBinAddr: 0x100003578, symSize: 0x88 }
+  - { offsetInCU: 0x74F, offset: 0x74F, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x1090, symBinAddr: 0x100003600, symSize: 0x120 }
 ...
