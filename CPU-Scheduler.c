@@ -179,8 +179,9 @@ void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount)
     /*
      * GETTING PROC INFORMATION
      */
-    char line[MAX_LINE];
-    while (fgets(line, MAX_LINE, file) != NULL)
+    char* line = NULL;
+    size_t line_length = 0;
+    while (getline(&line, &line_length, file) > 0)
     {
         Process proc = ParseProcess(line);
         proc.original_idx = *oprocsCount;
@@ -192,6 +193,11 @@ void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount)
         perror("fgets() error:");
         exit(EXIT_FAILURE);
     }
+
+
+
+    fclose(file);
+    free(line);
 }
 
 
