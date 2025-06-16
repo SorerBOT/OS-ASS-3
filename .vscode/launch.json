@@ -5,10 +5,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["CPU-Scheduler", "./cpu_input1.csv", "4"],
+            "args": ["Focus-Mode", "3", "4"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
-            "externalConsole": false,
+            "externalConsole": true,
             "environment": [],
             "MIMode": "lldb",
             "preLaunchTask": "C/C++: gcc build active file"

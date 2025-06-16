@@ -7,6 +7,11 @@
 #include <time.h>
 #include <unistd.h>
 
+/*
+ * Not an actual log level implementation, but a flag toggled between 0 and positive integers for more verbose executions
+ */
+#define LOG_LEVEL 0
+
 #define TICK_TIME 1e5
 
 #define MAX_NAME 51
@@ -84,7 +89,7 @@ Process ParseProcess(const char* line);
 void SortProcesses(Process procs[], int procCount, int (*predicate)(Process, Process));
 int ProcCmpArrivalTime(Process a, Process b);
 double GetTimeElapsed(struct timespec startingTime);
-void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, int procCount, struct timespec startingTime);
+void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, int procCount, int uptime);
 void SigAlarmHandler();
 void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount);
 
@@ -188,6 +193,7 @@ void InitProcessesFromCSV(const char* path, Process oprocs[], int* oprocsCount)
         oprocs[*oprocsCount] = proc;
         (*oprocsCount)++;
     }
+
     if (ferror(file))
     {
         perror("fgets() error:");
@@ -341,6 +347,11 @@ Process Dequeue(ReadyQueue* queue)
 
 void Enqueue(ReadyQueue* queue, Process item)
 {
+    if (LOG_LEVEL > 0)
+        fprintf(stdout, "Adding process %s to queue.\n", item.name);
+
+
+
     if (queue->size >= MAX_PROC)
     {
         fprintf(stderr, "Invalid operation error: queue is full\n");
@@ -371,7 +382,7 @@ double GetTimeElapsed(struct timespec startingTime)
             (double) (currentTime.tv_nsec - startingTime.tv_nsec) / 1e9;
 }
 
-void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, int procCount, struct timespec startingTime)
+void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, int procCount, int uptime)
 {
     /*
      * Validating that there is a process to add
@@ -381,13 +392,6 @@ void EnqueueNewArrivals(ReadyQueue* queue, Process procs[], int* startingIdx, in
         fprintf(stderr, "Invalid argument error: startingIdx = %d when there are only %d processes\n", *startingIdx, procCount);
         exit(EXIT_FAILURE);
     }
-
-
-
-    /*
-     * Getting scheduler uptime
-     */
-    int uptime = (int)GetTimeElapsed(startingTime);
 
 
 
@@ -480,7 +484,18 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
 
     while (isProcessNotArrived || IsEmpty(queue) || isProcessRunning)
     {
+        int processUptime = isProcessRunning ? (int)GetTimeElapsed(processStartingTime) : -1;
+        int schedulerUptime = (int)GetTimeElapsed(startingTime);
         isProcessNotArrived = startingIdx < procsCount;
+
+
+
+        if (LOG_LEVEL > 0)
+            fprintf(stdout, "Starting iteration. currentlyRunningProcess: %s, isProcessNotArrived: %s\n", isProcessRunning ? runningProcess.name : "NULL", isProcessNotArrived ? "true" : "false");
+
+
+
+
         if (isProcessNotArrived)
         {
             if (queue.CmpPriority == NULL)
@@ -488,17 +503,20 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                 fprintf(stderr, "Argument null error in function HandleCPUScheduler, 'queue.CmpPriority' cannot be null (iteration %d)\n", iteration);
                 exit(EXIT_FAILURE);
             }
-            EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, startingTime);
+            /*
+             * Only adding processes from the previous second. This is scuffed because of the changes to how round robin should work.
+             * Added the minus one second to account for the fact that I would only like to add process which were supposed to be added a second before
+             */
+            EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, isProcessRunning ? schedulerUptime - 1 : schedulerUptime);
             isProcessNotArrived = startingIdx < procsCount;
         }
 
 
 
+
         if (isProcessRunning)
         {
-            int processUptime = (int)GetTimeElapsed(processStartingTime);
-            int schedulerUptime = (int)GetTimeElapsed(startingTime);
-
+            bool wasRunningProcessChanged = false;
             if (processUptime >= runningProcess.burst_time)
             {
                 /*
@@ -506,6 +524,7 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                  */
                 totalWaitingTime += schedulerUptime - runningProcess.burst_time - runningProcess.arrival_time;
                 isProcessRunning = false;
+                wasRunningProcessChanged = true;
 
 
 
@@ -521,7 +540,10 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                  */
                 if (!isProcessNotArrived && IsEmpty(queue))
                 {
-                    turnaroundTime = (int)GetTimeElapsed(startingTime);
+
+                    if (LOG_LEVEL > 0)
+                        fprintf(stdout, "Last process finished, terminating.\n");
+                    turnaroundTime = schedulerUptime;
                     break;
                 }
             }
@@ -529,11 +551,17 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
             {
                 if (processUptime >= algorithm.maxUptime)
                 {
+                    if (LOG_LEVEL > 0)
+                        fprintf(stdout, "Process %s finished its timequantom without completing its burst. Re-adding to queue.\n", runningProcess.name);
+
+
+
                     /*
                      * Adding to totalWaitingTime
                      */
                     totalWaitingTime += schedulerUptime - algorithm.maxUptime - runningProcess.arrival_time;
                     isProcessRunning = false;
+                    wasRunningProcessChanged = true;
 
 
 
@@ -553,7 +581,18 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                     Enqueue(&queue, modifiedProcess);
                 }
             }
+            if (isProcessNotArrived && wasRunningProcessChanged)
+            {
+                if (queue.CmpPriority == NULL)
+                {
+                    fprintf(stderr, "Argument null error in function HandleCPUScheduler, 'queue.CmpPriority' cannot be null (iteration %d)\n", iteration);
+                    exit(EXIT_FAILURE);
+                }
+                EnqueueNewArrivals(&queue, procs, &startingIdx, procsCount, schedulerUptime);
+                isProcessNotArrived = startingIdx < procsCount;
+            }
         }
+
 
 
         if (!isProcessRunning && !IsEmpty(queue))
@@ -563,7 +602,6 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                 /*
                  * Printing idle log
                  */
-                int schedulerUptime = (int)GetTimeElapsed(startingTime);
                 printf(IDLE_LOG, idleTimeStart, schedulerUptime);
                 isIdling = false;
                 idleTimeStart = -1;
@@ -575,16 +613,23 @@ void RunAlgorithm(AlgorithmData algorithm, Process procs[], int procsCount)
                 exit(EXIT_FAILURE);
             }
             runningProcess = Dequeue(&queue);
+
+
+
+            if (LOG_LEVEL > 0)
+                fprintf(stdout, "Started running %s to queue.\n", runningProcess.name);
         }
+
 
 
 
         if (!isProcessRunning && IsEmpty(queue) && isProcessNotArrived && !isIdling)
         {
+            if (LOG_LEVEL > 0)
+                fprintf(stdout, "Started idling.\n");
             isIdling = true;
-            idleTimeStart = (int)GetTimeElapsed(startingTime);
+            idleTimeStart = schedulerUptime;
         }
-
 
         iteration++;
         ualarm((int)1e5, 0);

@@ -2,12 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SESSION_OUTRO "Focus Mode complete. All distractions are now unblocked.\n"
+#define SESSION_OUTRO "\nFocus Mode complete. All distractions are now unblocked.\n"
 #define FIRST_ROUND_INTRO "Entering Focus Mode. All distractions are blocked.\n"
 #define NON_FIRST_ROUND_INTRO \
     "──────────────────────────────────────────────\n" \
     "             Back to Focus Mode.              \n" \
-    "══════════════════════════════════════════════\n\n"
+    "══════════════════════════════════════════════\n"
 
 #define ADDITIONAL_ROUND_INTRO \
     "══════════════════════════════════════════════\n" \
@@ -53,6 +53,7 @@ void SetSignalAction(int signal, void (*action)(int));
 char GetMessage();
 void PlayRound(int roundNumber, int duration);
 void ProcessSignals(const int* singals, int signalsCount);
+void ProcessSignalsV2(const int* singals, int signalsCount);
 void HandleFocusMode(int numOfRounds, int duration);
 void SendSignal(char message);
 int FindNewSignal(const int* seenSignals, int seenSignalsCount, const int* relevantSignals, int relevantSignalsCount);
@@ -81,7 +82,7 @@ char GetMessage()
 void PlayRound(int roundNumber, int duration)
 {
     const int relevantSignalsCount = 3;
-    const int relevantSignals[] = { SIGUSR1, SIGUSR2, SIGINT };
+    const int relevantSignals[] = { SIGNAL_EMAIL, SIGNAL_DELIVERY, SIGNAL_DOORBELL };
 
     int seenSignalsCount = 0;
     int* seenSignals = (int*)malloc(relevantSignalsCount * sizeof(int));
@@ -105,8 +106,7 @@ void PlayRound(int roundNumber, int duration)
     /*
      * GENERATE seenSignals
      */
-    boolean didQuit = false;
-    for (int i = 0; i < duration && !didQuit; i++)
+    for (int i = 0; i < duration; i++)
     {
         int newSignal = -1;
 
@@ -114,10 +114,7 @@ void PlayRound(int roundNumber, int duration)
 
         int message = GetMessage();
         if (message == MESSAGE_QUIT)
-        {
-            didQuit = true;
             break;
-        }
 
 
 
@@ -139,7 +136,7 @@ void PlayRound(int roundNumber, int duration)
     if (seenSignalsCount == 0)
         printf(DISTRACTIONS_INTRO_EMPTY);
 
-    ProcessSignals(seenSignals, seenSignalsCount);
+    ProcessSignalsV2(seenSignals, seenSignalsCount);
 
 
 
@@ -175,6 +172,9 @@ void PlayRound(int roundNumber, int duration)
     free(seenSignals);
 }
 
+/*
+ * For some reason it seems like we're not supposed to process the sign als in the order that they were received.
+ */
 void ProcessSignals(const int* signals, int signalsCount)
 {
     for (int i = 0; i < signalsCount; i++)
@@ -206,19 +206,54 @@ void ProcessSignals(const int* signals, int signalsCount)
     }
 }
 
+/*
+ * For some reason it seems like we're not supposed to process the sign als in the order that they were received.
+ */
+void ProcessSignalsV2(const int* signals, int signalsCount)
+{
+    boolean seenEmail = false;
+    boolean seenDelivery = false;
+    boolean seenDoorbell = false;
+
+    for (int i = 0; i < signalsCount; i++)
+    {
+        switch (signals[i])
+        {
+            case SIGNAL_EMAIL:
+                seenEmail = true;
+                break;
+            case SIGNAL_DELIVERY:
+                seenDelivery = true;
+                break;
+            case SIGNAL_DOORBELL:
+                seenDoorbell = true;
+                break;
+            default:
+                fprintf(stderr, "Invalid argument error: '%d' is an invalid signal number\n", signals[i]);
+                break;
+        }
+    }
+    if (seenEmail)
+        printf("%s%s", MESSAGE_EMAIL_TEXT, MESSAGE_EMAIL_OUTCOME);
+    if (seenDelivery)
+        printf("%s%s", MESSAGE_DELIVERY_TEXT, MESSAGE_DELIVERY_OUTCOME);
+    if (seenDoorbell)
+        printf("%s%s", MESSAGE_DOORBELL_TEXT, MESSAGE_DOORBELL_OUTCOME);
+}
+
 void SendSignal(char message)
 {
     int signalNumber = -1;
     switch (message)
     {
         case MESSAGE_EMAIL:
-            signalNumber = SIGUSR1;
+            signalNumber = SIGNAL_EMAIL;
             break;
         case MESSAGE_DELIVERY:
-            signalNumber = SIGUSR2;
+            signalNumber = SIGNAL_DELIVERY;
             break;
         case MESSAGE_DOORBELL:
-            signalNumber = SIGINT;
+            signalNumber = SIGNAL_DOORBELL;
             break;
         default:
             break;
